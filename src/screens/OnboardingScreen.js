@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors } from '../theme/colors';
+import { useNavigation } from '@react-navigation/native';
 import { typography, spacing, radii } from '../theme/typography';
+import { useTheme } from '../theme/ThemeContext';
 import PrimaryButton from '../components/PrimaryButton';
 import { useAppStore } from '../store/useAppStore';
 import {
@@ -21,38 +22,47 @@ import {
 
 const { width } = Dimensions.get('window');
 
-const SLIDES = [
-  {
-    key: 's1',
-    emoji: '🌸',
-    gradient: ['#FCE7F3', '#F9A8D4'],
-    title: 'Mereces escuchar cosas bonitas todos los días',
-    body: 'Brilla te acompaña con recordatorios cortos que nutren tu autoestima — sin ruido, sin juicio.',
-  },
-  {
-    key: 's2',
-    emoji: '💜',
-    gradient: ['#EDE9FE', '#C4B5FD'],
-    title: '3 recordatorios diarios para tu bienestar',
-    body: 'Mañana, tarde y noche. Un pequeño gesto contigo misma/o que cambia cómo te hablas.',
-  },
-  {
-    key: 's3',
-    emoji: '🔔',
-    gradient: ['#FEF3C7', '#FDE68A'],
-    title: 'Activa las notificaciones',
-    body: 'Las necesitamos para enviarte tus frases a la hora que tú elijas. Funciona 100% offline.',
-    isPermission: true,
-  },
-];
-
 export default function OnboardingScreen() {
+  const theme = useTheme();
+  const navigation = useNavigation();
   const listRef = useRef(null);
   const [index, setIndex] = useState(0);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
   const schedule = useAppStore((s) => s.schedule);
+  const customMessages = useAppStore((s) => s.customMessages);
   const setNotificationsPermission = useAppStore(
     (s) => s.setNotificationsPermission,
+  );
+
+  const slides = useMemo(
+    () => [
+      {
+        key: 's1',
+        emoji: '🌸',
+        gradient: [
+          theme.accentBg.afirmaciones,
+          theme.accents.afirmaciones,
+        ],
+        title: 'Mereces escuchar cosas bonitas todos los días',
+        body: 'Brilla te acompaña con recordatorios cortos que nutren tu autoestima — sin ruido, sin juicio.',
+      },
+      {
+        key: 's2',
+        emoji: '💜',
+        gradient: [theme.accentBg.animos, theme.accents.animos],
+        title: '3 recordatorios diarios para tu bienestar',
+        body: 'Mañana, tarde y noche. Un pequeño gesto contigo misma/o que cambia cómo te hablas.',
+      },
+      {
+        key: 's3',
+        emoji: '🔔',
+        gradient: [theme.accentBg.logros, theme.accents.logros],
+        title: 'Activa las notificaciones',
+        body: 'Las necesitamos para enviarte tus frases a la hora que tú elijas. Funciona 100% offline.',
+        isPermission: true,
+      },
+    ],
+    [theme.name],
   );
 
   const goTo = (i) => {
@@ -60,8 +70,15 @@ export default function OnboardingScreen() {
     setIndex(i);
   };
 
+  const goHome = () => {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Home' }],
+    });
+  };
+
   const handleNext = async () => {
-    if (index < SLIDES.length - 1) {
+    if (index < slides.length - 1) {
       goTo(index + 1);
       return;
     }
@@ -69,30 +86,33 @@ export default function OnboardingScreen() {
     setNotificationsPermission(permission);
     if (permission === 'granted') {
       try {
-        await scheduleDailyNotifications(schedule);
+        await scheduleDailyNotifications(schedule, customMessages);
       } catch (e) {}
     }
     completeOnboarding(permission);
+    goHome();
   };
 
   const handleSkipPermission = () => {
     completeOnboarding('denied');
+    goHome();
   };
 
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
     if (viewableItems[0]) setIndex(viewableItems[0].index);
   }).current;
 
-  const current = SLIDES[index];
+  const current = slides[index] || slides[0];
+  const dotInactive = theme.isDark || theme.isNeon ? 'rgba(255,255,255,0.2)' : 'rgba(30,27,46,0.2)';
 
   return (
     <LinearGradient colors={current.gradient} style={{ flex: 1 }}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={theme.statusBar} />
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.skipRow}>
-          {index < SLIDES.length - 1 ? (
-            <Pressable onPress={() => goTo(SLIDES.length - 1)} hitSlop={12}>
-              <Text style={styles.skip}>Saltar</Text>
+          {index < slides.length - 1 ? (
+            <Pressable onPress={() => goTo(slides.length - 1)} hitSlop={12}>
+              <Text style={[styles.skip, { color: theme.text }]}>Saltar</Text>
             </Pressable>
           ) : (
             <View style={{ height: 20 }} />
@@ -101,29 +121,57 @@ export default function OnboardingScreen() {
 
         <FlatList
           ref={listRef}
-          data={SLIDES}
+          data={slides}
           keyExtractor={(item) => item.key}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={{ itemVisiblePercentThreshold: 55 }}
+          extraData={theme.name}
           renderItem={({ item }) => (
             <View style={[styles.slide, { width }]}>
-              <View style={styles.emojiCircle}>
+              <View
+                style={[
+                  styles.emojiCircle,
+                  {
+                    backgroundColor:
+                      theme.isDark || theme.isNeon
+                        ? 'rgba(255,255,255,0.08)'
+                        : 'rgba(255,255,255,0.55)',
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                  },
+                ]}
+              >
                 <Text style={styles.emoji}>{item.emoji}</Text>
               </View>
-              <Text style={styles.title}>{item.title}</Text>
-              <Text style={styles.body}>{item.body}</Text>
+              <Text
+                style={[
+                  styles.title,
+                  { color: theme.text },
+                  theme.isNeon && theme.glow.textGlow,
+                ]}
+              >
+                {item.title}
+              </Text>
+              <Text style={[styles.body, { color: theme.textMuted }]}>{item.body}</Text>
             </View>
           )}
         />
 
         <View style={styles.dots}>
-          {SLIDES.map((_, i) => (
+          {slides.map((_, i) => (
             <View
               key={i}
-              style={[styles.dot, i === index && styles.dotActive]}
+              style={[
+                styles.dot,
+                { backgroundColor: dotInactive },
+                i === index && {
+                  width: 22,
+                  backgroundColor: theme.text,
+                },
+              ]}
             />
           ))}
         </View>
@@ -131,7 +179,7 @@ export default function OnboardingScreen() {
         <View style={styles.footer}>
           <PrimaryButton
             label={
-              index === SLIDES.length - 1
+              index === slides.length - 1
                 ? 'Permitir notificaciones'
                 : 'Siguiente'
             }
@@ -139,7 +187,9 @@ export default function OnboardingScreen() {
           />
           {current.isPermission && (
             <Pressable onPress={handleSkipPermission} style={styles.later}>
-              <Text style={styles.laterText}>Quizá más tarde</Text>
+              <Text style={[styles.laterText, { color: theme.textMuted }]}>
+                Quizá más tarde
+              </Text>
             </Pressable>
           )}
         </View>
@@ -158,10 +208,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   skip: {
-    fontFamily: typography.semiBold,
+    fontFamily: typography.medium,
     fontSize: typography.sizes.sm,
-    color: colors.darkText,
-    opacity: 0.7,
+    opacity: 0.75,
+    letterSpacing: 0.3,
   },
   slide: {
     paddingHorizontal: spacing.xxl,
@@ -170,49 +220,41 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   emojiCircle: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(255,255,255,0.6)',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xxl,
   },
   emoji: {
-    fontSize: 64,
+    fontSize: 52,
   },
   title: {
     fontFamily: typography.extraBold,
     fontSize: typography.sizes.xxl,
-    color: colors.darkText,
     textAlign: 'center',
-    lineHeight: 36,
+    lineHeight: 34,
     marginBottom: spacing.md,
+    paddingHorizontal: spacing.sm,
   },
   body: {
     fontFamily: typography.regular,
     fontSize: typography.sizes.md,
-    color: colors.darkText,
     textAlign: 'center',
     lineHeight: 24,
-    opacity: 0.8,
     paddingHorizontal: spacing.md,
   },
   dots: {
     flexDirection: 'row',
     alignSelf: 'center',
-    gap: spacing.sm,
+    gap: 6,
     marginBottom: spacing.xl,
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(30,27,46,0.25)',
-  },
-  dotActive: {
-    width: 24,
-    backgroundColor: colors.darkText,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   footer: {
     paddingHorizontal: spacing.xl,
@@ -226,7 +268,5 @@ const styles = StyleSheet.create({
   laterText: {
     fontFamily: typography.medium,
     fontSize: typography.sizes.sm,
-    color: colors.darkText,
-    opacity: 0.7,
   },
 });

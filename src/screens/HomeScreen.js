@@ -13,8 +13,8 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated';
-import { colors, categoryBackgrounds } from '../theme/colors';
 import { typography, spacing, radii } from '../theme/typography';
+import { useTheme } from '../theme/ThemeContext';
 import MessageCard from '../components/MessageCard';
 import StreakBadge from '../components/StreakBadge';
 import { useAppStore } from '../store/useAppStore';
@@ -35,17 +35,16 @@ function useGreeting() {
   else if (hour < 19) timeGreeting = 'Buenas tardes';
   else timeGreeting = 'Buenas noches';
 
-  const subtitle =
-    GREETINGS[new Date().getDate() % GREETINGS.length];
+  const subtitle = GREETINGS[new Date().getDate() % GREETINGS.length];
   return { timeGreeting, subtitle };
 }
 
 export default function HomeScreen({ navigation }) {
+  const theme = useTheme();
   const currentMessage = useAppStore((s) => s.currentMessage);
   const refreshMessage = useAppStore((s) => s.refreshMessage);
   const updateStreak = useAppStore((s) => s.updateStreak);
   const streak = useAppStore((s) => s.streak);
-  const lastOpenDay = useAppStore((s) => s.lastOpenDay);
   const favorites = useAppStore((s) => s.favorites);
   const toggleFavorite = useAppStore((s) => s.toggleFavorite);
 
@@ -66,8 +65,8 @@ export default function HomeScreen({ navigation }) {
   };
 
   const bg = currentMessage
-    ? categoryBackgrounds[currentMessage.category] || colors.warmWhite
-    : colors.warmWhite;
+    ? theme.accentBg[currentMessage.category] || theme.bg
+    : theme.bg;
 
   const bgOpacity = useSharedValue(1);
   const bgStyle = useAnimatedStyle(() => ({ opacity: bgOpacity.value }));
@@ -80,15 +79,11 @@ export default function HomeScreen({ navigation }) {
   const isFavorite = currentMessage && favorites.includes(currentMessage.id);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.warmWhite }}>
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <Animated.View
-        style={[
-          StyleSheet.absoluteFillObject,
-          { backgroundColor: bg },
-          bgStyle,
-        ]}
+        style={[StyleSheet.absoluteFillObject, { backgroundColor: bg }, bgStyle]}
       />
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={theme.statusBar} />
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView
           contentContainerStyle={styles.scroll}
@@ -96,19 +91,38 @@ export default function HomeScreen({ navigation }) {
         >
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.greeting}>{timeGreeting}</Text>
-              <Text style={styles.subtitle}>{subtitle}</Text>
+              <Text
+                style={[
+                  styles.greeting,
+                  { color: theme.text },
+                  theme.isNeon && theme.glow.textGlow,
+                ]}
+              >
+                {timeGreeting}
+              </Text>
+              <Text style={[styles.subtitle, { color: theme.textMuted }]}>
+                {subtitle}
+              </Text>
             </View>
             <Pressable
               onPress={() => navigation.navigate('Settings')}
-              style={styles.headerBtn}
+              style={[
+                styles.headerBtn,
+                {
+                  backgroundColor: theme.isDark || theme.isNeon
+                    ? 'rgba(255,255,255,0.08)'
+                    : 'rgba(255,255,255,0.7)',
+                },
+              ]}
               hitSlop={10}
             >
-              <Text style={styles.headerBtnText}>⚙︎</Text>
+              <Text style={[styles.headerBtnText, { color: theme.text }]}>⚙︎</Text>
             </Pressable>
           </View>
 
-          <Text style={styles.sectionLabel}>Tu mensaje de hoy</Text>
+          <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
+            Tu mensaje de hoy
+          </Text>
 
           <MessageCard
             message={currentMessage}
@@ -123,11 +137,20 @@ export default function HomeScreen({ navigation }) {
             onPress={handleRefresh}
             style={({ pressed }) => [
               styles.refresh,
+              {
+                backgroundColor: theme.card,
+                shadowColor: theme.isNeon ? theme.accents.afirmaciones : '#000',
+                shadowOpacity: theme.isNeon ? 0.5 : 0.06,
+              },
+              theme.isNeon && {
+                borderWidth: 1,
+                borderColor: theme.accents.afirmaciones,
+              },
               pressed && { transform: [{ scale: 0.98 }] },
             ]}
           >
-            <Text style={styles.refreshIcon}>↻</Text>
-            <Text style={styles.refreshText}>Ver otro</Text>
+            <Text style={[styles.refreshIcon, { color: theme.text }]}>↻</Text>
+            <Text style={[styles.refreshText, { color: theme.text }]}>Ver otro</Text>
           </Pressable>
 
           <View style={styles.streakWrap}>
@@ -138,7 +161,7 @@ export default function HomeScreen({ navigation }) {
             onPress={() => navigation.navigate('History')}
             style={styles.historyLink}
           >
-            <Text style={styles.historyLinkText}>
+            <Text style={[styles.historyLinkText, { color: theme.text }]}>
               Ver mi historial →
             </Text>
           </Pressable>
@@ -161,30 +184,25 @@ const styles = StyleSheet.create({
   greeting: {
     fontFamily: typography.extraBold,
     fontSize: typography.sizes.xxl,
-    color: colors.darkText,
   },
   subtitle: {
     fontFamily: typography.medium,
     fontSize: typography.sizes.sm,
-    color: colors.muted,
     marginTop: 2,
   },
   headerBtn: {
     width: 44,
     height: 44,
     borderRadius: radii.pill,
-    backgroundColor: 'rgba(255,255,255,0.7)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerBtnText: {
     fontSize: 22,
-    color: colors.darkText,
   },
   sectionLabel: {
     fontFamily: typography.semiBold,
     fontSize: typography.sizes.xs,
-    color: colors.muted,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
     marginBottom: spacing.md,
@@ -193,26 +211,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'center',
-    backgroundColor: colors.white,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
     borderRadius: radii.pill,
     marginTop: spacing.xl,
     gap: spacing.sm,
-    shadowColor: colors.darkText,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
     shadowRadius: 6,
     elevation: 2,
   },
   refreshIcon: {
     fontSize: 18,
-    color: colors.darkText,
   },
   refreshText: {
     fontFamily: typography.bold,
     fontSize: typography.sizes.md,
-    color: colors.darkText,
   },
   streakWrap: {
     marginTop: spacing.xxl,
@@ -225,6 +238,5 @@ const styles = StyleSheet.create({
   historyLinkText: {
     fontFamily: typography.bold,
     fontSize: typography.sizes.md,
-    color: colors.darkText,
   },
 });

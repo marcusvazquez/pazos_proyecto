@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, StyleSheet, Pressable } from 'react-native';
-import { colors } from '../theme/colors';
 import { typography, radii, spacing } from '../theme/typography';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function PrimaryButton({
   label,
@@ -10,14 +10,29 @@ export default function PrimaryButton({
   icon,
   style,
 }) {
-  const palette = VARIANTS[variant] || VARIANTS.primary;
+  const theme = useTheme();
+
+  const palette =
+    variant === 'pink'
+      ? { bg: theme.accents.afirmaciones, fg: theme.isDark || theme.isNeon ? '#0A0A0A' : '#1E1B2E' }
+      : variant === 'soft'
+        ? { bg: theme.card, fg: theme.text }
+        : variant === 'ghost'
+          ? { bg: 'transparent', fg: theme.text }
+          : { bg: theme.text, fg: theme.bg };
+
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
         styles.btn,
-        { backgroundColor: palette.bg },
-        pressed && { transform: [{ scale: 0.97 }], opacity: 0.92 },
+        {
+          backgroundColor: palette.bg,
+          borderWidth: variant === 'ghost' ? 1 : 0,
+          borderColor: theme.border,
+        },
+        variant === 'primary' && theme.isNeon && theme.glow.forAccent(theme.accents.afirmaciones),
+        pressed && { transform: [{ scale: 0.98 }], opacity: 0.92 },
         style,
       ]}
     >
@@ -26,13 +41,6 @@ export default function PrimaryButton({
     </Pressable>
   );
 }
-
-const VARIANTS = {
-  primary: { bg: '#1E1B2E', fg: '#FAFAFA' },
-  pink: { bg: colors.pink, fg: colors.darkText },
-  soft: { bg: colors.white, fg: colors.darkText },
-  ghost: { bg: 'transparent', fg: colors.darkText },
-};
 
 const styles = StyleSheet.create({
   btn: {

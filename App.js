@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -22,7 +22,7 @@ import HistoryScreen from './src/screens/HistoryScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 
 import { useAppStore } from './src/store/useAppStore';
-import { colors } from './src/theme/colors';
+import { useTheme } from './src/theme/ThemeContext';
 import {
   addNotificationResponseListener,
   getLastNotificationResponse,
@@ -34,20 +34,19 @@ SplashScreenModule.preventAutoHideAsync().catch(() => {});
 const Stack = createNativeStackNavigator();
 
 function AppNavigator() {
+  const theme = useTheme();
   const hasOnboarded = useAppStore((s) => s.hasOnboarded);
 
   return (
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: colors.warmWhite },
+        contentStyle: { backgroundColor: theme.bg },
         animation: 'fade',
       }}
       initialRouteName={hasOnboarded ? 'Home' : 'Onboarding'}
     >
-      {!hasOnboarded && (
-        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-      )}
+      <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen
         name="History"
@@ -63,7 +62,8 @@ function AppNavigator() {
   );
 }
 
-export default function App() {
+function RootApp() {
+  const theme = useTheme();
   const [showSplash, setShowSplash] = useState(true);
   const [fontsLoaded] = useFonts({
     Nunito_400Regular,
@@ -75,6 +75,7 @@ export default function App() {
 
   const showMessageById = useAppStore((s) => s.showMessageById);
   const schedule = useAppStore((s) => s.schedule);
+  const customMessages = useAppStore((s) => s.customMessages);
   const notificationsPermission = useAppStore(
     (s) => s.notificationsPermission,
   );
@@ -103,7 +104,7 @@ export default function App() {
 
   useEffect(() => {
     if (notificationsPermission === 'granted') {
-      scheduleDailyNotifications(schedule).catch(() => {});
+      scheduleDailyNotifications(schedule, customMessages).catch(() => {});
     }
   }, [notificationsPermission]);
 
@@ -112,12 +113,12 @@ export default function App() {
       <View
         style={{
           flex: 1,
-          backgroundColor: colors.pink,
+          backgroundColor: theme.bg,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <ActivityIndicator color={colors.darkText} />
+        <ActivityIndicator color={theme.text} />
       </View>
     );
   }
@@ -125,18 +126,26 @@ export default function App() {
   if (showSplash) {
     return (
       <SafeAreaProvider>
-        <StatusBar style="light" />
+        <StatusBar style={theme.statusBarStyle} />
         <SplashScreen onFinish={() => setShowSplash(false)} />
       </SafeAreaProvider>
     );
   }
 
+  const navTheme = theme.isDark || theme.isNeon
+    ? { ...DarkTheme, colors: { ...DarkTheme.colors, background: theme.bg } }
+    : { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: theme.bg } };
+
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <NavigationContainer>
+      <StatusBar style={theme.statusBarStyle} />
+      <NavigationContainer theme={navTheme}>
         <AppNavigator />
       </NavigationContainer>
     </SafeAreaProvider>
   );
+}
+
+export default function App() {
+  return <RootApp />;
 }

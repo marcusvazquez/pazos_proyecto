@@ -5,12 +5,11 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withSequence,
-  withDelay,
   Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, categoryGradients } from '../theme/colors';
 import { typography, radii, spacing } from '../theme/typography';
+import { useTheme } from '../theme/ThemeContext';
 import CategoryTag from './CategoryTag';
 
 export default function MessageCard({
@@ -19,6 +18,7 @@ export default function MessageCard({
   onToggleFavorite,
   animationKey,
 }) {
+  const theme = useTheme();
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.96);
 
@@ -38,38 +38,82 @@ export default function MessageCard({
   }));
 
   if (!message) return null;
-  const gradient = categoryGradients[message.category] || categoryGradients.afirmaciones;
+
+  const gradient =
+    theme.categoryGradients[message.category] || theme.categoryGradients.afirmaciones;
+  const accent = theme.accents[message.category] || theme.accents.afirmaciones;
+
+  const textStyle = [
+    styles.text,
+    { color: theme.isNeon || theme.isDark ? theme.text : '#1E1B2E' },
+    theme.isNeon && theme.glow.textGlow,
+  ];
+
+  const dotColor =
+    theme.isDark || theme.isNeon ? 'rgba(255,255,255,0.2)' : 'rgba(30,27,46,0.2)';
+  const dotActiveColor = theme.isDark || theme.isNeon ? theme.text : '#1E1B2E';
 
   return (
-    <Animated.View style={[styles.wrapper, animStyle]}>
+    <Animated.View
+      style={[
+        styles.wrapper,
+        {
+          shadowColor: theme.isNeon ? accent : '#1E1B2E',
+          shadowOpacity: theme.isNeon ? 0.6 : 0.1,
+          shadowRadius: theme.isNeon ? 16 : 24,
+        },
+        animStyle,
+      ]}
+    >
       <LinearGradient
         colors={gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.card}
+        style={[
+          styles.card,
+          theme.isNeon && {
+            borderWidth: 1,
+            borderColor: accent,
+            ...theme.glow.forAccent(accent),
+          },
+        ]}
       >
         <View style={styles.header}>
-          <CategoryTag category={message.category} />
+          <CategoryTag category={message.category} showCustomIcon={!!message.custom} />
           {onToggleFavorite && (
             <Pressable
               onPress={onToggleFavorite}
               hitSlop={12}
               style={({ pressed }) => [
                 styles.heartBtn,
+                {
+                  backgroundColor:
+                    theme.isDark || theme.isNeon
+                      ? 'rgba(255,255,255,0.1)'
+                      : 'rgba(255,255,255,0.55)',
+                },
                 pressed && { transform: [{ scale: 0.9 }] },
               ]}
             >
-              <Text style={styles.heart}>{isFavorite ? '♥' : '♡'}</Text>
+              <Text style={[styles.heart, { color: isFavorite ? accent : theme.textMuted }]}>
+                {isFavorite ? '♥' : '♡'}
+              </Text>
             </Pressable>
           )}
         </View>
 
-        <Text style={styles.text}>{message.text}</Text>
+        <Text style={textStyle}>{message.text}</Text>
 
         <View style={styles.footer}>
-          <View style={styles.dot} />
-          <View style={[styles.dot, styles.dotActive]} />
-          <View style={styles.dot} />
+          <View style={[styles.dot, { backgroundColor: dotColor }]} />
+          <View
+            style={[
+              styles.dot,
+              styles.dotActive,
+              { backgroundColor: dotActiveColor },
+            ]}
+          />
+          <View style={[styles.dot, { backgroundColor: dotColor }]} />
         </View>
       </LinearGradient>
     </Animated.View>
@@ -79,10 +123,7 @@ export default function MessageCard({
 const styles = StyleSheet.create({
   wrapper: {
     width: '100%',
-    shadowColor: colors.darkText,
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.1,
-    shadowRadius: 24,
     elevation: 6,
   },
   card: {
@@ -100,19 +141,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radii.pill,
-    backgroundColor: 'rgba(255,255,255,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   heart: {
     fontSize: 22,
-    color: '#E11D74',
     lineHeight: 24,
   },
   text: {
     fontFamily: typography.bold,
     fontSize: typography.sizes.xl,
-    color: colors.darkText,
     lineHeight: 30,
     marginTop: spacing.lg,
     marginBottom: spacing.lg,
@@ -126,10 +164,8 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(30,27,46,0.2)',
   },
   dotActive: {
     width: 18,
-    backgroundColor: colors.darkText,
   },
 });

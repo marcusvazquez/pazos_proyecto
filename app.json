@@ -2,7 +2,7 @@
   "expo": {
     "name": "Brilla",
     "slug": "brilla",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -16,12 +16,17 @@
     ],
     "ios": {
       "supportsTablet": true,
+      "buildNumber": "2",
       "bundleIdentifier": "com.brilla.app",
       "infoPlist": {
-        "UIBackgroundModes": ["fetch", "remote-notification"]
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ]
       }
     },
     "android": {
+      "versionCode": 2,
       "package": "com.brilla.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -44,6 +49,11 @@
       "icon": "./assets/notification-icon.png",
       "color": "#F9A8D4",
       "iosDisplayInForeground": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c2536b95-dd28-464f-bae4-4ad7aa4e4c84"
+      }
     }
   }
 }

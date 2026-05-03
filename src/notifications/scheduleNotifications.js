@@ -18,10 +18,6 @@ if (Platform.OS !== 'web') {
   });
 }
 
-/**
- * Pide permisos de notificaciones al usuario.
- * Devuelve el status: "granted" | "denied" | "undetermined".
- */
 export async function requestNotificationPermissions() {
   if (!Device.isDevice && Platform.OS !== 'web') {
     return 'denied';
@@ -48,10 +44,13 @@ export async function requestNotificationPermissions() {
 
 /**
  * Devuelve (y rota) un pool de mensajes para notificaciones.
- * Cuando se agota el banco completo, se reinicia.
+ * Mezcla el banco general con mensajes personales si se pasan.
  */
-async function pickMessagesForSchedule(count) {
-  const all = getAllMessages();
+async function pickMessagesForSchedule(count, customMessages = []) {
+  const all = [
+    ...getAllMessages(),
+    ...(customMessages || []).map((m) => ({ ...m, custom: true })),
+  ];
   let used = [];
   try {
     const raw = await AsyncStorage.getItem(USED_KEY);
@@ -68,6 +67,7 @@ async function pickMessagesForSchedule(count) {
 
   const picked = [];
   for (let i = 0; i < count; i++) {
+    if (pool.length === 0) break;
     const idx = Math.floor(Math.random() * pool.length);
     const [chosen] = pool.splice(idx, 1);
     picked.push(chosen);
@@ -82,10 +82,11 @@ async function pickMessagesForSchedule(count) {
 }
 
 /**
- * Cancela todas las notificaciones programadas y reprograma las 3 diarias.
- * @param {Array<{id:string, label:string, hour:number, minute:number, enabled:boolean}>} schedule
+ * Cancela todas las notificaciones programadas y reprograma las diarias.
+ * @param {Array} schedule - ranuras de horarios activas
+ * @param {Array} customMessages - mensajes personales a mezclar (opcional)
  */
-export async function scheduleDailyNotifications(schedule) {
+export async function scheduleDailyNotifications(schedule, customMessages = []) {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
   } catch (e) {}
@@ -93,12 +94,13 @@ export async function scheduleDailyNotifications(schedule) {
   const active = (schedule || []).filter((s) => s.enabled);
   if (active.length === 0) return [];
 
-  const picked = await pickMessagesForSchedule(active.length);
+  const picked = await pickMessagesForSchedule(active.length, customMessages);
   const results = [];
 
   for (let i = 0; i < active.length; i++) {
     const slot = active[i];
     const msg = picked[i];
+    if (!msg) continue;
     try {
       const id = await Notifications.scheduleNotificationAsync({
         content: {
@@ -121,10 +123,6 @@ export async function scheduleDailyNotifications(schedule) {
   return results;
 }
 
-/**
- * Registra un handler para cuando el usuario toca una notificación.
- * Devuelve una función para limpiar el listener.
- */
 export function addNotificationResponseListener(callback) {
   const sub = Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response?.notification?.request?.content?.data;
@@ -135,10 +133,6 @@ export function addNotificationResponseListener(callback) {
   return () => sub.remove();
 }
 
-/**
- * Devuelve la última respuesta de notificación cuando la app se abrió
- * tocando una notificación (útil para cold start).
- */
 export async function getLastNotificationResponse() {
   try {
     const response = await Notifications.getLastNotificationResponseAsync();

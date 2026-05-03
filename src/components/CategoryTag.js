@@ -1,16 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors } from '../theme/colors';
 import { typography, radii, spacing } from '../theme/typography';
-import { categoryColors, categoryLabels, categoryEmojis } from '../data/messages';
+import { categoryLabels, categoryEmojis } from '../data/messages';
+import { useTheme } from '../theme/ThemeContext';
 
-export default function CategoryTag({ category, size = 'md' }) {
+export default function CategoryTag({ category, size = 'md', showCustomIcon = false }) {
+  const theme = useTheme();
   if (!category) return null;
-  const bg = categoryColors[category] || colors.pink;
+
+  const bg = theme.accents[category] || theme.accents.afirmaciones;
   const label = categoryLabels[category] || category;
   const emoji = categoryEmojis[category] || '✨';
 
   const isSmall = size === 'sm';
+  const textColor = theme.isDark || theme.isNeon ? '#0A0A0A' : theme.text;
 
   return (
     <View
@@ -18,10 +21,16 @@ export default function CategoryTag({ category, size = 'md' }) {
         styles.tag,
         { backgroundColor: bg },
         isSmall && styles.tagSm,
+        theme.isNeon && theme.glow.forAccent(bg),
       ]}
     >
       <Text style={[styles.emoji, isSmall && styles.emojiSm]}>{emoji}</Text>
-      <Text style={[styles.label, isSmall && styles.labelSm]}>{label}</Text>
+      <Text style={[styles.label, { color: textColor }, isSmall && styles.labelSm]}>
+        {label}
+      </Text>
+      {showCustomIcon && (
+        <Text style={[styles.customIcon, isSmall && styles.customIconSm]}>✏️</Text>
+      )}
     </View>
   );
 }
@@ -50,10 +59,17 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: typography.bold,
     fontSize: typography.sizes.sm,
-    color: colors.darkText,
     letterSpacing: 0.3,
   },
   labelSm: {
     fontSize: typography.sizes.xs,
+  },
+  customIcon: {
+    fontSize: typography.sizes.sm,
+    marginLeft: 6,
+  },
+  customIconSm: {
+    fontSize: typography.sizes.xs,
+    marginLeft: 4,
   },
 });
